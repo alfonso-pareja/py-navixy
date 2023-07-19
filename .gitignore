@@ -1,0 +1,22 @@
+# Entorno virtual
+venv/
+env/
+ENV/
+virtualenv/
+
+
+# Archivos generados
+__pycache__/
+.cache/
+.mypy_cache/
+.pytest_cache/
+
+# Configuraciones de desarrollo y entorno local
+.env
+.env.local
+.env.*.local
+.env.*.prod
+*.ini
+
+# Otros
+.DS_Store

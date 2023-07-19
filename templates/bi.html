@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tabla de elementos</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        tr:hover {
+            background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tabla de elementos</h1>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Tracker ID</th>
+            <th>Status</th>
+        </tr>
+        {% for item in data.list %}
+        <tr>
+            <td>{{ item.id }}</td>
+            <td>{{ item.tracker_id }}</td>
+            <td>
+                <ul>
+                    {% for checkpoint in item.checkpoints %}
+                    <li>{{ checkpoint.status }}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
