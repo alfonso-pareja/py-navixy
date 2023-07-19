@@ -61,10 +61,11 @@ def get_alerts_list():
         data = response.json()
         alarmas = [item["message"] for item in data["list"]]
         patentes = list(set(item["extra"]["tracker_label"] for item in data["list"]))
-        recuento_patentes = {patente: sum(1 for item in data["list"] if item["extra"]["tracker_label"] == patente) for patente in patentes}
-        patentes_ordenadas = sorted(patentes, key=lambda x: recuento_patentes[x], reverse=True)
-        recuento_ordenado = {k: v for k, v in sorted(recuento_patentes.items(), key=lambda item: item[1], reverse=True)}
-        localizaciones = {item["extra"]["tracker_label"]: item["location"] for item in data["list"]}
+        recuento_patentes = [{ "patente": patente, "cantidad": sum(1 for item in data["list"] if item["extra"]["tracker_label"] == patente)} for patente in patentes]
+        patentes_ordenadas = sorted(patentes, key=lambda x: next((item["cantidad"] for item in recuento_patentes if item["patente"] == x), 0), reverse=True)
+        recuento_ordenado = sorted(recuento_patentes, key=lambda x: x["cantidad"], reverse=True)
+        localizaciones = [{ "patente": item["extra"]["tracker_label"], "location": item["location"] } for item in data["list"]]
+
 
         return {
             "alarm_list": alarmas,
