@@ -64,7 +64,7 @@ def get_alerts_list():
         recuento_patentes = [{ "patente": patente, "cantidad": sum(1 for item in data["list"] if item["extra"]["tracker_label"] == patente)} for patente in patentes]
         patentes_ordenadas = sorted(patentes, key=lambda x: next((item["cantidad"] for item in recuento_patentes if item["patente"] == x), 0), reverse=True)
         recuento_ordenado = sorted(recuento_patentes, key=lambda x: x["cantidad"], reverse=True)
-        localizaciones = [{ "patente": item["extra"]["tracker_label"], "location": item["location"] } for item in data["list"]]
+        localizaciones = [{ "patente": item["extra"]["tracker_label"], "location_lat": item["location"]["lat"], "location_lng": item["location"]["lng"], "location_address": item["location"]["address"] } for item in data["list"]]
 
 
         return {
