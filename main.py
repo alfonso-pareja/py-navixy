@@ -29,11 +29,58 @@ def read_root():
 def bi_servicev1(dateFrom: Optional[str] = None, dateTo: Optional[str] = None, hash: str = Query(...)):
     global HASH_API
     HASH_API = hash
-    print("AQUI")
 
     list_data = get_alerts_list()
     return list_data;
 
+@app.get('/mock/bi')
+def mock_bi_service():
+
+    fecha_hora_actual = datetime.now()
+    fecha_hora_formateada = fecha_hora_actual.strftime("%Y-%m-%d %H:%M:%S")
+
+    return [
+        {
+            "estimated_time": '7h 15m',
+            "estimated_time_arrival": '0m',
+            "route_name": 'Ruta de Prueba Arribo City',
+            "vehicle_registration": 'HYDJ34',
+            "destination_route_name": 'PARADA FINAL Pasada Daemon Travel',
+            "task_name": 'Despacho de transporte Bonito',
+            "state": 'Arribado',
+            "date": fecha_hora_formateada
+        },
+        {
+            "estimated_time": '4h 25m',
+            "estimated_time_arrival": '1h 25m',
+            "route_name": 'Ruta de Prueba Daemon Travel',
+            "vehicle_registration": 'ETEB93',
+            "destination_route_name": 'PARADA FINAL Crazy City',
+            "task_name": 'Despacho de transporte Bonito',
+            "state": 'Iniciada',
+            "date": fecha_hora_formateada
+        },
+        {
+            "estimated_time": '4h 45m',
+            "estimated_time_arrival": '1h 55m',
+            "route_name": 'Ruta de Prueba Los Angeles Bitch',
+            "vehicle_registration": 'UIEY32',
+            "destination_route_name": 'PARADA FINALNormal City',
+            "task_name": 'Despacho de transporte Bonito',
+            "state": 'Transito',
+            "date": fecha_hora_formateada
+        },
+        {
+            "estimated_time": '5h 30m',
+            "estimated_time_arrival": '2h 20m',
+            "route_name": 'Ruta de Prueba Hight way to Heaven',
+            "vehicle_registration": 'HDHE32',
+            "destination_route_name": 'PARADA FINAL I DONT KNOW WHAT NAME PUT HERE.',
+            "task_name": 'Despacho de transporte Bonito',
+            "state": 'Iniciada',
+            "date": fecha_hora_formateada
+        }
+    ]   
 
 @app.get("/bi")
 def bi_service(dateFrom: Optional[str] = None, dateTo: Optional[str] = None, hash: str = Query(...)):
@@ -164,7 +211,6 @@ def filter_data(data):
         "success": True
     }
 
-
 def get_info_tracker(tracker_id):
     url = f"{BASE_URL}/tracker/get_state?tracker_id={tracker_id}&hash={HASH_API}"
     response = requests.get(url)
@@ -182,7 +228,6 @@ def get_info_tracker(tracker_id):
         "movement_status": data["movement_status"],
         "actual_track_update": data["actual_track_update"]
     }
-
 
 def get_tracker_list():
     url = f"{BASE_URL}/tracker/get_state?hash={HASH_API}"
