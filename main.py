@@ -112,7 +112,7 @@ def get_info_navixy():
     
 
 
-    return build_navixy()
+    return "hola"
 
 
 
