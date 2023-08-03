@@ -136,33 +136,36 @@ def build_navixy():
         current_lng = track_location["track_location_lng"]
 
         task_status = calculate_task_status(task, current_lat, current_lng)
-        estimated_complete = get_distance_service(start_lat, start_lng, end_lat, end_lng),
+        # estimated_complete = get_distance_service(start_lat, start_lng, end_lat, end_lng),
         # estimated_location = get_distance_service(current_lat, current_lng, end_lat, end_lng),
         
-        print(estimated_complete)
         if task_status == 'Arribado':
             time_to_arribe = time_diff(task["checkpoint_end"])
             if(time_to_arribe is False): 
                 formatted_task = {
                     # "estimated_time": calculate_total_time_estimation(task["checkpoints"]),
                     # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
-                    "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng),
-                    "estimated_time_arrival": get_distance_service(current_lat, current_lng, end_lat,  end_lng),
+                    "estimated_time": "4h 24m",
+                    "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
                     "initial_route_name": task["checkpoint_start"]["label"],
                     "destination_route_name": task["checkpoint_end"]["label"],
+                    "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
+                    "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
                     "route_name": task["route_name"],
                     "tracker_location_lat": current_lat,
                     "tracker_location_lng": current_lng,
                     "tracker_device_movement": track_location["tracker_device_movement"],
-                    "tracker_label": tracker[0]["label"],
+                    "tracker_label":  tracker[0]["label"],
                     "tracker_speed": track_location["tracker_speed"],
                     "task_name": task["route_name"],
+                    "task_status": task["status_task"],
                     "state": calculate_task_status(task, current_lat, current_lng),
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
                 }
         else:
             formatted_task = {
-                "estimated_time": estimated_complete[0][1],
+                "estimated_time": "4h 24m",
                 "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
                 "initial_route_name": task["checkpoint_start"]["label"],
                 "destination_route_name": task["checkpoint_end"]["label"],
