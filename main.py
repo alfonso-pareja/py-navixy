@@ -166,6 +166,8 @@ def build_navixy():
                 "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
                 "initial_route_name": task["checkpoint_start"]["label"],
                 "destination_route_name": task["checkpoint_end"]["label"],
+                "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
+                "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
                 "route_name": task["route_name"],
                 "tracker_location_lat": current_lat,
                 "tracker_location_lng": current_lng,
