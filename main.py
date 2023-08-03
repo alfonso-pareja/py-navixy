@@ -148,7 +148,7 @@ def build_navixy():
                     "tracker_location_lat": current_lat,
                     "tracker_location_lng": current_lng,
                     "tracker_device_movement": track_location["tracker_device_movement"],
-                    "tracker_label": None,
+                    "tracker_label": tracker["label"],
                     "tracker_speed": track_location["tracker_speed"],
                     "task_name": task["route_name"],
                     "state": calculate_task_status(task, current_lat, current_lng),
