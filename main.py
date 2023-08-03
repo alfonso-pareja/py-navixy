@@ -6,9 +6,7 @@ from datetime import datetime, timedelta
 import pytz
 import math
 import uvicorn
-import asyncio
 import requests
-from concurrent.futures import ThreadPoolExecutor
 import copy
 
 app = FastAPI()
@@ -117,128 +115,6 @@ def get_info_navixy():
     return build_navixy()
 
 
-### GPT
-async def get_distance_service1(start_lat, start_lng, end_lat, end_lng):
-    url = f"{BASE_URL}/route/get"
-    body = {
-        "pgk": "",
-        "start": {
-            "lat": start_lat,
-            "lng": start_lng
-        },
-        "end": {
-            "lat": end_lat,
-            "lng": end_lng
-        },
-        "waypoints": [],
-        "provider_type": "osrm",
-        "point_limit": 512,
-        "hash": HASH_API
-    }
-
-    loop = asyncio.get_running_loop()
-    with ThreadPoolExecutor() as executor:
-        response = await loop.run_in_executor(executor, requests.post, url, body)
-
-        if response.status_code == 200:
-            data = response.json()
-            result = data["key_points"][1]
-            return meters_to_kilometers(result["distance"]), result["time"]
-
-        else:
-            print("Error:")
-            return 0, 0
-
-async def process_tasks(task_list, trackers):
-    task_list = get_trackers_task_list()
-
-    formatted_response = []
-
-    # Crear una lista de corutinas con las llamadas a get_distance_service1
-    coroutines = [get_distance_service1(
-        task["checkpoint_start"]["lat"],
-        task["checkpoint_start"]["lng"],
-        task["checkpoint_end"]["lat"],
-        task["checkpoint_end"]["lng"]
-    ) for task in task_list]
-
-    # Crear una lista de corutinas con las llamadas a get_tracker_location
-    coroutines_trackers = [get_tracker_location2(task["tracker_id"]) for task in task_list]
-
-    # Ejecutar ambas listas de corutinas en paralelo y obtener los resultados
-    results, trackers_locations = loop.run_until_complete(asyncio.gather(asyncio.gather(*coroutines), asyncio.gather(*coroutines_trackers)))
-
-
-    # Asignar los resultados a las tareas
-    for i, task in enumerate(task_list):
-        track_location = tracker[i]
-        current_lat = trackers_locations[i]["track_location_lat"]
-        current_lng = trackers_locations[i]["track_location_lng"]
-
-        task["estimated_time_fijo"] = "4h 28m"  # Ejemplo, debes ajustar esto según tus necesidades
-        task["estimated_time"] = results[i][1]  # Obtener el tiempo en segundos
-        task["estimated_time_arrival"] = format_time(calculate_dynamic_distance_time(
-            current_lat, current_lng, task["checkpoints"])[1])  # Formatear el tiempo en horas y minutos
-        task["initial_route_name"] = task["checkpoint_start"]["label"]
-        task["destination_route_name"] = task["checkpoint_end"]["label"]
-        task["arrival_date_first_check"] = task["checkpoint_start"]["arrival_date"]
-        task["arrival_date_last_check"] = task["checkpoint_end"]["arrival_date"]
-        task["firts_checkpoint_lat"] = task["checkpoint_start"]["lat"]
-        task["firts_checkpoint_lng"] = task["checkpoint_start"]["lng"]
-        task["end_checkpoint_lat"] = task["checkpoint_end"]["lat"]
-        task["end_checkpoint_lng"] = task["checkpoint_end"]["lng"]
-        task["route_name"] = task["route_name"]
-        task["tracker_location_lat"] = current_lat
-        task["tracker_location_lng"] = trackers_locations[i]["track_location_lng"]
-        task["tracker_device_movement"] = trackers_locations[i]["tracker_device_movement"]
-        task["tracker_label"] = tracker[i]["label"]
-        task["tracker_speed"] = trackers_locations[i]["tracker_speed"]
-        task["task_name"] = task["route_name"]
-        task["task_status"] = task["status_task"]
-        task["state"] = calculate_task_status(task, task["tracker_location_lat"], task["tracker_location_lng"])
-        task["date"] = formatted_time
-
-    formatted_response = task_list  # Usar task_list con los datos actualizados
-
-    # Resto del código, como la función status_sort_key y otras
-
-    # Ordenar las tareas según el estado
-    sorted_response = sorted(formatted_response, key=status_sort_key)
-    return sorted_response
-
-def build_navixy2():
-    trackers = get_tracker_list_filtered()
-    task_list = get_trackers_task_list()
-
-    formatted_response = []
-    asyncio.run(process_tasks(task_list, trackers))
-
-    sorted_response = sorted(formatted_response, key=status_sort_key)
-    return sorted_response
-
-
-import aiohttp
-
-async def get_tracker_location2(trackerId):
-    url = f"{BASE_URL}/tracker/get_state?tracker_id={trackerId}&hash={HASH_API}"
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                data = await response.json()
-                return {
-                    "track_location_lat": data["state"]["gps"]["location"].get("lat", 0),
-                    "track_location_lng": data["state"]["gps"]["location"].get("lng", 0),
-                    "tracker_speed": data["state"]["gps"]["speed"],
-                    "tracker_device_status": data["state"]["connection_status"],
-                    "tracker_device_movement": data["state"]["movement_status"]
-                }
-            else:
-                print("Error:")
-                raise HTTPException(status_code=response.status, detail="Failed to fetch data")
-
-### GPT
-
 
 ## Armar respuesta
 def build_navixy():
@@ -299,7 +175,7 @@ def build_navixy():
         else:
             formatted_task = {
                 "estimated_time_fijo": "4h 28m",
-                # "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
+                "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
                 "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
                 # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
                 "initial_route_name": task["checkpoint_start"]["label"],
