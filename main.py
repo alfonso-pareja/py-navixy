@@ -3,9 +3,12 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from datetime import datetime, timedelta
+import pytz
 import math
 import uvicorn
+import asyncio
 import requests
+from concurrent.futures import ThreadPoolExecutor
 import copy
 
 app = FastAPI()
@@ -114,81 +117,8 @@ def get_info_navixy():
     return build_navixy()
 
 
-
-## Armar respuesta
-def build_navixy():
-    trackers = get_tracker_list_filtered()
-    task_list = get_trackers_task_list()
-
-    formatted_response = []
-    for task in task_list:
-        tracker = [track for track in trackers if track["id"] == task["tracker_id"]]
-        # print( tracker[0]["label"])
-        # return [{"id": item["id"], "label": item["label"]} for item in data["list"]]
-
-        start_lat = task["checkpoint_start"]["lat"]
-        start_lng = task["checkpoint_start"]["lng"]
-        end_lat   = task["checkpoint_end"]["lat"]
-        end_lng   = task["checkpoint_end"]["lng"]
-
-        track_location = get_tracker_location(task["tracker_id"])
-        current_lat = track_location["track_location_lat"]
-        current_lng = track_location["track_location_lng"]
-
-        task_status = calculate_task_status(task, current_lat, current_lng)
-        # estimated_complete = get_distance_service(start_lat, start_lng, end_lat, end_lng),
-        # estimated_location = get_distance_service(current_lat, current_lng, end_lat, end_lng),
-        
-        if task_status == 'Arribado':
-            time_to_arribe = time_diff(task["checkpoint_end"])
-            if(time_to_arribe is False): 
-                formatted_task = {
-                    # "estimated_time": calculate_total_time_estimation(task["checkpoints"]),
-                    # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
-                    "estimated_time": "4h 24m",
-                    "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
-                    "initial_route_name": task["checkpoint_start"]["label"],
-                    "destination_route_name": task["checkpoint_end"]["label"],
-                    "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
-                    "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
-                    "route_name": task["route_name"],
-                    "tracker_location_lat": current_lat,
-                    "tracker_location_lng": current_lng,
-                    "tracker_device_movement": track_location["tracker_device_movement"],
-                    "tracker_label":  tracker[0]["label"],
-                    "tracker_speed": track_location["tracker_speed"],
-                    "task_name": task["route_name"],
-                    "task_status": task["status_task"],
-                    "state": calculate_task_status(task, current_lat, current_lng),
-                    "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-                }
-        else:
-            formatted_task = {
-                "estimated_time": "4h 24m",
-                "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
-                "initial_route_name": task["checkpoint_start"]["label"],
-                "destination_route_name": task["checkpoint_end"]["label"],
-                "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
-                "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
-                "route_name": task["route_name"],
-                "tracker_location_lat": current_lat,
-                "tracker_location_lng": current_lng,
-                "tracker_device_movement": track_location["tracker_device_movement"],
-                "tracker_label":  tracker[0]["label"],
-                "tracker_speed": track_location["tracker_speed"],
-                "task_name": task["route_name"],
-                "task_status": task["status_task"],
-                "state": calculate_task_status(task, current_lat, current_lng),
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-
-        formatted_response.append(formatted_task)
-
-    return formatted_response
-
-
-def get_distance_service(start_lat, start_lng, end_lat, end_lng):
+### GPT
+async def get_distance_service1(start_lat, start_lng, end_lat, end_lng):
     url = f"{BASE_URL}/route/get"
     body = {
         "pgk": "",
@@ -205,11 +135,237 @@ def get_distance_service(start_lat, start_lng, end_lat, end_lng):
         "point_limit": 512,
         "hash": HASH_API
     }
+
+    loop = asyncio.get_running_loop()
+    with ThreadPoolExecutor() as executor:
+        response = await loop.run_in_executor(executor, requests.post, url, body)
+
+        if response.status_code == 200:
+            data = response.json()
+            result = data["key_points"][1]
+            return meters_to_kilometers(result["distance"]), result["time"]
+
+        else:
+            print("Error:")
+            return 0, 0
+
+async def process_tasks(task_list, trackers):
+    task_list = get_trackers_task_list()
+
+    formatted_response = []
+
+    # Crear una lista de corutinas con las llamadas a get_distance_service1
+    coroutines = [get_distance_service1(
+        task["checkpoint_start"]["lat"],
+        task["checkpoint_start"]["lng"],
+        task["checkpoint_end"]["lat"],
+        task["checkpoint_end"]["lng"]
+    ) for task in task_list]
+
+    # Crear una lista de corutinas con las llamadas a get_tracker_location
+    coroutines_trackers = [get_tracker_location2(task["tracker_id"]) for task in task_list]
+
+    # Ejecutar ambas listas de corutinas en paralelo y obtener los resultados
+    results, trackers_locations = loop.run_until_complete(asyncio.gather(asyncio.gather(*coroutines), asyncio.gather(*coroutines_trackers)))
+
+
+    # Asignar los resultados a las tareas
+    for i, task in enumerate(task_list):
+        track_location = tracker[i]
+        current_lat = trackers_locations[i]["track_location_lat"]
+        current_lng = trackers_locations[i]["track_location_lng"]
+
+        task["estimated_time_fijo"] = "4h 28m"  # Ejemplo, debes ajustar esto según tus necesidades
+        task["estimated_time"] = results[i][1]  # Obtener el tiempo en segundos
+        task["estimated_time_arrival"] = format_time(calculate_dynamic_distance_time(
+            current_lat, current_lng, task["checkpoints"])[1])  # Formatear el tiempo en horas y minutos
+        task["initial_route_name"] = task["checkpoint_start"]["label"]
+        task["destination_route_name"] = task["checkpoint_end"]["label"]
+        task["arrival_date_first_check"] = task["checkpoint_start"]["arrival_date"]
+        task["arrival_date_last_check"] = task["checkpoint_end"]["arrival_date"]
+        task["firts_checkpoint_lat"] = task["checkpoint_start"]["lat"]
+        task["firts_checkpoint_lng"] = task["checkpoint_start"]["lng"]
+        task["end_checkpoint_lat"] = task["checkpoint_end"]["lat"]
+        task["end_checkpoint_lng"] = task["checkpoint_end"]["lng"]
+        task["route_name"] = task["route_name"]
+        task["tracker_location_lat"] = current_lat
+        task["tracker_location_lng"] = trackers_locations[i]["track_location_lng"]
+        task["tracker_device_movement"] = trackers_locations[i]["tracker_device_movement"]
+        task["tracker_label"] = tracker[i]["label"]
+        task["tracker_speed"] = trackers_locations[i]["tracker_speed"]
+        task["task_name"] = task["route_name"]
+        task["task_status"] = task["status_task"]
+        task["state"] = calculate_task_status(task, task["tracker_location_lat"], task["tracker_location_lng"])
+        task["date"] = formatted_time
+
+    formatted_response = task_list  # Usar task_list con los datos actualizados
+
+    # Resto del código, como la función status_sort_key y otras
+
+    # Ordenar las tareas según el estado
+    sorted_response = sorted(formatted_response, key=status_sort_key)
+    return sorted_response
+
+def build_navixy2():
+    trackers = get_tracker_list_filtered()
+    task_list = get_trackers_task_list()
+
+    formatted_response = []
+    asyncio.run(process_tasks(task_list, trackers))
+
+    sorted_response = sorted(formatted_response, key=status_sort_key)
+    return sorted_response
+
+
+import aiohttp
+
+async def get_tracker_location2(trackerId):
+    url = f"{BASE_URL}/tracker/get_state?tracker_id={trackerId}&hash={HASH_API}"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                data = await response.json()
+                return {
+                    "track_location_lat": data["state"]["gps"]["location"].get("lat", 0),
+                    "track_location_lng": data["state"]["gps"]["location"].get("lng", 0),
+                    "tracker_speed": data["state"]["gps"]["speed"],
+                    "tracker_device_status": data["state"]["connection_status"],
+                    "tracker_device_movement": data["state"]["movement_status"]
+                }
+            else:
+                print("Error:")
+                raise HTTPException(status_code=response.status, detail="Failed to fetch data")
+
+### GPT
+
+
+## Armar respuesta
+def build_navixy():
+    trackers = get_tracker_list_filtered()
+    task_list = get_trackers_task_list()
+
+    formatted_response = []
+    for task in task_list:
+        tracker = [track for track in trackers if track["id"] == task["tracker_id"]]
+        # print( tracker[0]["label"])
+        # return [{"id": item["id"], "label": item["label"]} for item in data["list"]]
+
+
+        local_now = datetime.now()
+        santiago_timezone = pytz.timezone('America/Santiago')
+        santiago_now = local_now.astimezone(santiago_timezone)
+        formatted_time = santiago_now.strftime("%Y-%m-%d %H:%M:%S")
+
+        start_lat = task["checkpoint_start"]["lat"]
+        start_lng = task["checkpoint_start"]["lng"]
+        end_lat   = task["checkpoint_end"]["lat"]
+        end_lng   = task["checkpoint_end"]["lng"]
+
+        track_location = get_tracker_location(task["tracker_id"])
+        current_lat = track_location["track_location_lat"]
+        current_lng = track_location["track_location_lng"]
+
+        task_status = calculate_task_status(task, current_lat, current_lng)
+        # estimated_complete = get_distance_service(start_lat, start_lng, end_lat, end_lng),
+        # estimated_location = get_distance_service(current_lat, current_lng, end_lat, end_lng),
+        print(start_lat, start_lng, end_lat, end_lng)
+        if task_status == 'Arribado':
+            time_to_arribe = time_diff(task["checkpoint_end"]["arrival_date"])
+            if(time_to_arribe is False): 
+                formatted_task = {
+                    # "estimated_time": calculate_total_time_estimation(task["checkpoints"]),
+                    # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
+                    "estimated_time_fijo": "4h 28m",
+                    "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
+                    "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
+                    # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
+                    "initial_route_name": task["checkpoint_start"]["label"],
+                    "destination_route_name": task["checkpoint_end"]["label"],
+                    "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
+                    "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
+                    "route_name": task["route_name"],
+                    "tracker_location_lat": current_lat,
+                    "tracker_location_lng": current_lng,
+                    "tracker_device_movement": track_location["tracker_device_movement"],
+                    "tracker_label":  tracker[0]["label"],
+                    "tracker_speed": track_location["tracker_speed"],
+                    "task_name": task["route_name"],
+                    "task_status": task["status_task"],
+                    "state": calculate_task_status(task, current_lat, current_lng),
+                    "date": formatted_time
+
+                }
+        else:
+            formatted_task = {
+                "estimated_time_fijo": "4h 28m",
+                "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
+                "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
+                # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
+                "initial_route_name": task["checkpoint_start"]["label"],
+                "destination_route_name": task["checkpoint_end"]["label"],
+                "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
+                "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
+
+                "firts_checkpoint_lat": start_lat,
+                "firts_checkpoint_lng": start_lng,
+                "end_checkpoint_lat": end_lat,
+                "end_checkpoint_lng": end_lng,
+
+                "route_name": task["route_name"],
+                "tracker_location_lat": current_lat,
+                "tracker_location_lng": current_lng,
+                "tracker_device_movement": track_location["tracker_device_movement"],
+                "tracker_label":  tracker[0]["label"],
+                "tracker_speed": track_location["tracker_speed"],
+                "task_name": task["route_name"],
+                "task_status": task["status_task"],
+                "state": calculate_task_status(task, current_lat, current_lng),
+                "date": formatted_time
+            }
+
+        formatted_response.append(formatted_task)
+
+    sorted_response = sorted(formatted_response, key=status_sort_key)
+    return sorted_response
+
+def status_sort_key(task):
+    status_order = {
+        "assigned": 0,
+        "done": 1,
+        "failed": 2
+        # Agrega otros estados que puedas tener aquí con sus respectivos valores numéricos
+    }
+    return status_order.get(task["task_status"], 99)
+
+def get_distance_service(start_lat, start_lng, end_lat, end_lng):
+    print(start_lat, start_lng, end_lat, end_lng)
+    url = f"{BASE_URL}/route/get"
+    body = {
+        "pgk": "",
+        "start": {
+            "lat": start_lat,
+            "lng": start_lng
+        },
+        "end": {
+            "lat": end_lat,
+            "lng": end_lng
+        },
+        "waypoints": [],
+        "provider_type": "osrm",
+        "point_limit": 512,
+        "hash": HASH_API
+    }
+
+    print(start_lat, start_lng, end_lat, end_lng)
+
     response = requests.post(url, json=body)
     if response.status_code == 200:
         data = response.json()
 
         result = data["key_points"][1]
+
+        print(result)
 
         return meters_to_kilometers(result["distance"]), format_time(result["time"])
 
@@ -221,13 +377,29 @@ def get_distance_service(start_lat, start_lng, end_lat, end_lng):
 def meters_to_kilometers(meters):
     return meters / 1000
 
+def convert_time_to_minutes(time_str):
+    days, hours, minutes = 0, 0, 0
+
+    if 'd' in time_str:
+        days = int(time_str.split('d')[0])
+        time_str = time_str.split('d')[1]
+
+    if 'h' in time_str:
+        hours = int(time_str.split('h')[0])
+        time_str = time_str.split('h')[1]
+
+    if 'm' in time_str:
+        minutes = int(time_str.split('m')[0])
+
+    total_minutes = days * 24 * 60 + hours * 60 + minutes
+    return total_minutes
+
 def format_time(seconds):
-    days = seconds // (24 * 3600)
-    seconds %= (24 * 3600)
     hours = seconds // 3600
-    seconds %= 3600
-    minutes = seconds // 60
-    return f"{int(days)}d {int(hours)}h {int(minutes)}m"
+    remaining_seconds = seconds % 3600
+    minutes = remaining_seconds // 60
+    return f"{hours}h {minutes}m"
+
 
 
 def time_diff(arrival_date_str):
@@ -256,7 +428,7 @@ def calculate_task_status(task, current_lat, current_lng):
         return "Transito"
 
     if task["checkpoint_start"]["status"] == "done":
-        return "Inciada"
+        return "Iniciada"
     
     return ''
    
@@ -295,15 +467,19 @@ def get_tracker_location(trackerId):
 
 ## Lista de tareas
 def get_trackers_task_list():
-    url = f"{BASE_URL}/task/list"
+    current_date = datetime.now()
+    tomorrow_date = current_date + timedelta(days=1)
+    from_date_str = current_date.strftime("%Y-%m-%d 00:00:00")
+    to_date_str = tomorrow_date.strftime("%Y-%m-%d 23:59:59")
+
     body = {
-        "from": "2023-08-02 00:00:00",
-        "to": "2023-08-03 23:59:59",
-        "types": [
-            "route"
-        ],
+        "from": from_date_str,
+        "to": to_date_str,
+        "types": ["route"],
         "hash": HASH_API
     }
+
+    url = f"{BASE_URL}/task/list"
     response = requests.post(url, json=body)
 
     if response.status_code == 200:
