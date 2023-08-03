@@ -123,6 +123,7 @@ def build_navixy():
     formatted_response = []
     for task in task_list:
         tracker = [track for track in trackers if track["id"] == task["tracker_id"]]
+        # print( tracker[0]["label"])
         # return [{"id": item["id"], "label": item["label"]} for item in data["list"]]
 
         start_lat = task["checkpoint_start"]["lat"]
@@ -148,7 +149,7 @@ def build_navixy():
                     "tracker_location_lat": current_lat,
                     "tracker_location_lng": current_lng,
                     "tracker_device_movement": track_location["tracker_device_movement"],
-                    "tracker_label": tracker["label"],
+                    "tracker_label": tracker[0]["label"],
                     "tracker_speed": track_location["tracker_speed"],
                     "task_name": task["route_name"],
                     "state": calculate_task_status(task, current_lat, current_lng),
@@ -164,7 +165,7 @@ def build_navixy():
                 "tracker_location_lat": current_lat,
                 "tracker_location_lng": current_lng,
                 "tracker_device_movement": track_location["tracker_device_movement"],
-                "tracker_label": None,
+                "tracker_label":  tracker[0]["label"],
                 "tracker_speed": track_location["tracker_speed"],
                 "task_name": task["route_name"],
                 "state": calculate_task_status(task, current_lat, current_lng),
@@ -174,6 +175,33 @@ def build_navixy():
         formatted_response.append(formatted_task)
 
     return formatted_response
+
+
+def get_distance_service(start_lat, start_lng, end_lat, end_lng):
+    url = f"{BASE_URL}/route/get"
+    body = {
+        "pgk": "",
+        "start": {
+            "lat": start_lat,
+            "lng": start_lng
+        },
+        "end": {
+            "lat": end_lat,
+            "lng": end_lng
+        },
+        "waypoints": [],
+        "provider_type": "osrm",
+        "point_limit": 512,
+        "hash": HASH_API
+    }
+    response = requests.post(url, json=body)
+    if response.status_code == 200:
+        data = response.json()
+        return data["key_points"][1]
+
+    else:
+        print("Error:")
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
 
 
 def time_diff(arrival_date_str):
