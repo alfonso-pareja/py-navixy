@@ -128,7 +128,7 @@ def build_navixy():
 
 
     sorted_response = sorted(formatted_response, key=status_sort_key)
-    return formatted_response
+    return sorted_response
 
 
 def calculate_task_status(task, current_lat, current_lng):
@@ -220,6 +220,7 @@ def get_trackers_task_list():
         "from": from_date_str,
         "to": to_date_str,
         "types": ["route"],
+        
         "hash": HASH_API
     }
 
