@@ -30,9 +30,7 @@ def read_root():
 
 
 @app.get("/v1/alerts")
-def bi_servicev1(dateFrom: Optional[str] = None, dateTo: Optional[str] = None, hash: str = Query(...)):
-    global HASH_API
-    HASH_API = hash
+def bi_servicev1():
 
     list_data = get_alerts_list()
     return list_data;
@@ -112,7 +110,7 @@ def get_info_navixy():
     
 
 
-    return "hola"
+    return build_navixy()
 
 
 
@@ -153,7 +151,7 @@ def build_navixy():
                     # "estimated_time": calculate_total_time_estimation(task["checkpoints"]),
                     # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
                     "estimated_time_fijo": "4h 28m",
-                    # "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
+                    "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
                     "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
                     # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
                     "initial_route_name": task["checkpoint_start"]["label"],
