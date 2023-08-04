@@ -1,131 +1,61 @@
-from fastapi import FastAPI, Request, Query, HTTPException
-from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
+from fastapi import FastAPI, HTTPException
 from datetime import datetime, timedelta
 import pytz
 import math
-import uvicorn
 import requests
-import copy
 
 app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-templates = Jinja2Templates(directory="templates")
 
 BASE_URL = 'https://apigps.fiordoaustral.com'
 HASH_API = '616c1befc270f3e662ae1cb0df89d030'
 AVERAGE_SPEED_KPH = 47
 
-@app.get("/")
-def read_root():
-    return "Hello World"
-
-
-@app.get("/v1/alerts")
-def bi_servicev1():
-
-    list_data = get_alerts_list()
-    return list_data;
-    
-
-@app.get('/mock/bi')
-def mock_bi_service():
-
-    fecha_hora_actual = datetime.now()
-    fecha_hora_formateada = fecha_hora_actual.strftime("%Y-%m-%d %H:%M:%S")
-
-    return [
-        {
-            "estimated_time": '7h 15m',
-            "estimated_time_arrival": '0m',
-            "route_name": 'Ruta de Prueba Arribo City',
-            "vehicle_registration": 'HYDJ34',
-            "destination_route_name": 'PARADA FINAL Pasada Daemon Travel',
-            "task_name": 'Despacho de transporte Bonito',
-            "state": 'Arribado',
-            "date": fecha_hora_formateada
-        },
-        {
-            "estimated_time": '4h 25m',
-            "estimated_time_arrival": '1h 25m',
-            "route_name": 'Ruta de Prueba Daemon Travel',
-            "vehicle_registration": 'ETEB93',
-            "destination_route_name": 'PARADA FINAL Crazy City',
-            "task_name": 'Despacho de transporte Bonito',
-            "state": 'Iniciada',
-            "date": fecha_hora_formateada
-        },
-        {
-            "estimated_time": '4h 45m',
-            "estimated_time_arrival": '1h 55m',
-            "route_name": 'Ruta de Prueba Los Angeles Bitch',
-            "vehicle_registration": 'UIEY32',
-            "destination_route_name": 'PARADA FINALNormal City',
-            "task_name": 'Despacho de transporte Bonito',
-            "state": 'Transito',
-            "date": fecha_hora_formateada
-        },
-        {
-            "estimated_time": '5h 30m',
-            "estimated_time_arrival": '2h 20m',
-            "route_name": 'Ruta de Prueba Hight way to Heaven',
-            "vehicle_registration": 'HDHE32',
-            "destination_route_name": 'PARADA FINAL I DONT KNOW WHAT NAME PUT HERE.',
-            "task_name": 'Despacho de transporte Bonito',
-            "state": 'Iniciada',
-            "date": fecha_hora_formateada
-        }
-    ]  
-
-
-# @app.get("/bi")
-# def bi_service(dateFrom: Optional[str] = None, dateTo: Optional[str] = None, hash: str = Query(...)):
-#     global HASH_API
-#     HASH_API = hash
-
-#     filtered_data = get_task_list(dateFrom, dateTo)
-#     return filtered_data
-
-# @app.get("/view/bi")
-# def view_bi(request: Request, dateFrom: Optional[str] = None, dateTo: Optional[str] = None, hash: str = Query(...)):
-#     global HASH_API
-#     HASH_API = hash
-
-#     filtered_data = get_task_list(dateFrom, dateTo)
-#     return templates.TemplateResponse("bi.html", {"request": request, "data": filtered_data})
-
-
-
-## /////// ------ ///////
 @app.get("/v1/navixy")
 def get_info_navixy():
-    
+    global HASH_API
+    # Realiza la consulta previa para verificar si el hash es válido
+    if not is_valid_hash(HASH_API):
+        # Si el hash no es válido, renueva el hash
+        HASH_API = renew_hash()
 
-
+    # Continúa con la función build_navixy()
     return build_navixy()
 
 
+def is_valid_hash(hash_value):
+    # Realiza la consulta para verificar si el hash es válido
+    url = f"{BASE_URL}/tracker/readings/list?tracker_id=289&hash={hash_value}"
+    response = requests.get(url)
 
-## Armar respuesta
+    # Si la respuesta es 200, el hash es válido, de lo contrario, no lo es
+    return response.status_code == 200
+
+def renew_hash():
+    global HASH_API
+    # Realiza la consulta para obtener un nuevo hash válido
+    url = f"{BASE_URL}/user/auth?login=victor@tecnobus.cl&password=T3cn0Bus!2023"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        new_hash = data.get("hash")
+        if new_hash:
+            HASH_API = new_hash
+            return new_hash
+
+    # Si no se pudo obtener un nuevo hash, lanza una excepción o retorna el hash anterior
+    # Aquí se puede personalizar según lo que se prefiera hacer en caso de error.
+    raise HTTPException(status_code=500, detail="Failed to obtain a valid hash")
+
+
+
 def build_navixy():
     trackers = get_tracker_list_filtered()
     task_list = get_trackers_task_list()
 
     formatted_response = []
+    formatted_task = {}
     for task in task_list:
         tracker = [track for track in trackers if track["id"] == task["tracker_id"]]
-        # print( tracker[0]["label"])
-        # return [{"id": item["id"], "label": item["label"]} for item in data["list"]]
-
-
         local_now = datetime.now()
         santiago_timezone = pytz.timezone('America/Santiago')
         santiago_now = local_now.astimezone(santiago_timezone)
@@ -133,27 +63,22 @@ def build_navixy():
 
         start_lat = task["checkpoint_start"]["lat"]
         start_lng = task["checkpoint_start"]["lng"]
-        end_lat   = task["checkpoint_end"]["lat"]
-        end_lng   = task["checkpoint_end"]["lng"]
+        end_lat = task["checkpoint_end"]["lat"]
+        end_lng = task["checkpoint_end"]["lng"]
 
         track_location = get_tracker_location(task["tracker_id"])
         current_lat = track_location["track_location_lat"]
         current_lng = track_location["track_location_lng"]
 
         task_status = calculate_task_status(task, current_lat, current_lng)
-        # estimated_complete = get_distance_service(start_lat, start_lng, end_lat, end_lng),
-        # estimated_location = get_distance_service(current_lat, current_lng, end_lat, end_lng),
-        print(start_lat, start_lng, end_lat, end_lng)
+
         if task_status == 'Arribado':
             time_to_arribe = time_diff(task["checkpoint_end"]["arrival_date"])
-            if(time_to_arribe is False): 
+            
+            if time_to_arribe is False:
                 formatted_task = {
-                    # "estimated_time": calculate_total_time_estimation(task["checkpoints"]),
-                    # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
-                    "estimated_time_fijo": "4h 28m",
                     "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
                     "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
-                    # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
                     "initial_route_name": task["checkpoint_start"]["label"],
                     "destination_route_name": task["checkpoint_end"]["label"],
                     "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
@@ -170,12 +95,12 @@ def build_navixy():
                     "date": formatted_time
 
                 }
+            else:
+                print(f'{tracker[0]["label"]} Termino el recorrido y pasaron mas de 15 minutos')
         else:
             formatted_task = {
-                "estimated_time_fijo": "4h 28m",
                 "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
                 "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
-                # "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng, task["checkpoints"])[1],
                 "initial_route_name": task["checkpoint_start"]["label"],
                 "destination_route_name": task["checkpoint_end"]["label"],
                 "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
@@ -198,22 +123,67 @@ def build_navixy():
                 "date": formatted_time
             }
 
-        formatted_response.append(formatted_task)
+        if formatted_task:
+            formatted_response.append(formatted_task)
+
 
     sorted_response = sorted(formatted_response, key=status_sort_key)
-    return sorted_response
+    return formatted_response
+
+
+def calculate_task_status(task, current_lat, current_lng):
+    if task["checkpoint_end"]["status"] == "done":
+        return "Arribado"
+
+    estimated_time_to_first = calculate_time_estimation(task["checkpoint_start"]["lat"], task["checkpoint_start"]["lng"], current_lat, current_lng) 
+    if (estimated_time_to_first[1] >= 30) :
+        return "Transito"
+
+    if task["checkpoint_start"]["status"] == "done":
+        return "Iniciada"
+    
+    return ''
+   
 
 def status_sort_key(task):
     status_order = {
         "assigned": 0,
         "done": 1,
         "failed": 2
-        # Agrega otros estados que puedas tener aquí con sus respectivos valores numéricos
     }
     return status_order.get(task["task_status"], 99)
 
+def get_tracker_location(trackerId):
+    url = f"{BASE_URL}/tracker/get_state?tracker_id={trackerId}&hash={HASH_API}"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "track_location_lat": data["state"]["gps"]["location"].get("lat", 0),
+            "track_location_lng": data["state"]["gps"]["location"].get("lng", 0),
+            "tracker_speed": data["state"]["gps"]["speed"],
+            "tracker_device_status": data["state"]["connection_status"],
+            "tracker_device_movement": data["state"]["movement_status"]
+        }
+    else:
+        print("Error:")
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
+
+
+def get_tracker_list_filtered():
+    url = f"{BASE_URL}/tracker/list?hash={HASH_API}"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        return [{"id": item["id"], "label": item["label"]} for item in data["list"]]
+    else:
+        print("Error:")
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
+
+
 def get_distance_service(start_lat, start_lng, end_lat, end_lng):
-    print(start_lat, start_lng, end_lat, end_lng)
     url = f"{BASE_URL}/route/get"
     body = {
         "pgk": "",
@@ -231,120 +201,20 @@ def get_distance_service(start_lat, start_lng, end_lat, end_lng):
         "hash": HASH_API
     }
 
-    print(start_lat, start_lng, end_lat, end_lng)
-
     response = requests.post(url, json=body)
     if response.status_code == 200:
         data = response.json()
-
         result = data["key_points"][1]
-
-        print(result)
-
         return meters_to_kilometers(result["distance"]), format_time(result["time"])
-
     else:
-        print("Error:")
-        return 0, 0
-        # raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
-
-def meters_to_kilometers(meters):
-    return meters / 1000
-
-def convert_time_to_minutes(time_str):
-    days, hours, minutes = 0, 0, 0
-
-    if 'd' in time_str:
-        days = int(time_str.split('d')[0])
-        time_str = time_str.split('d')[1]
-
-    if 'h' in time_str:
-        hours = int(time_str.split('h')[0])
-        time_str = time_str.split('h')[1]
-
-    if 'm' in time_str:
-        minutes = int(time_str.split('m')[0])
-
-    total_minutes = days * 24 * 60 + hours * 60 + minutes
-    return total_minutes
-
-def format_time(seconds):
-    hours = seconds // 3600
-    remaining_seconds = seconds % 3600
-    minutes = remaining_seconds // 60
-    return f"{hours}h {minutes}m"
-
-
-
-def time_diff(arrival_date_str):
-    # Convertir la cadena en un objeto de fecha y hora
-    arrival_date = datetime.strptime(arrival_date_str, "%Y-%m-%d %H:%M:%S")
-
-    # Obtener la hora actual
-    current_time = datetime.now()
-
-    # Calcular la diferencia de tiempo entre la fecha de llegada y la hora actual
-    time_diff = current_time - arrival_date
-
-    # Verificar si han pasado más de 15 minutos desde la llegada
-    if time_diff > timedelta(minutes=15):
-        return True
-    else:
-        return False
-
-
-def calculate_task_status(task, current_lat, current_lng):
-    if task["checkpoint_end"]["status"] == "done":
-        return "Arribado"
-
-    estimated_time_to_first = calculate_time_estimation(task["checkpoint_start"]["lat"], task["checkpoint_start"]["lng"], current_lat, current_lng) 
-    if (estimated_time_to_first[1] >= 30) :
-        return "Transito"
-
-    if task["checkpoint_start"]["status"] == "done":
-        return "Iniciada"
-    
-    return ''
-   
-
-## Tracker List
-def get_tracker_list_filtered():
-    url = f"{BASE_URL}/tracker/list?hash={HASH_API}"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        data = response.json()
-        return [{"id": item["id"], "label": item["label"]} for item in data["list"]]
-
-    else:
-        print("Error:")
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
 
-## Localizacion
-def get_tracker_location(trackerId):
-    url = f"{BASE_URL}/tracker/get_state?tracker_id={trackerId}&hash={HASH_API}"
-    response = requests.get(url)
 
-    if response.status_code == 200:
-        data = response.json()
-        return {
-            "track_location_lat": data["state"]["gps"]["location"].get("lat", 0),
-            "track_location_lng": data["state"]["gps"]["location"].get("lng", 0),
-            "tracker_speed": data["state"]["gps"]["speed"],
-            "tracker_device_status": data["state"]["connection_status"],
-            "tracker_device_movement": data["state"]["movement_status"]
-        }
-
-    else:
-        print("Error:")
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
-
-## Lista de tareas
 def get_trackers_task_list():
     current_date = datetime.now()
     tomorrow_date = current_date + timedelta(days=1)
     from_date_str = current_date.strftime("%Y-%m-%d 00:00:00")
-    to_date_str = tomorrow_date.strftime("%Y-%m-%d 23:59:59")
+    to_date_str   = tomorrow_date.strftime("%Y-%m-%d 23:59:59")
 
     body = {
         "from": from_date_str,
@@ -390,101 +260,38 @@ def extract_data_task_list(item):
         "route_name": item["label"]
     }
 
-def status_text(status):
-    if status == "failed":
-        return "no completado"
-    elif status == "assigned":
-        return "asignado"
-    elif status == "done":
-        return "completado"
-    else:
-        return status
+
+
+
+def meters_to_kilometers(meters):
+    return meters / 1000
+
+def calculate_time_estimation(start_lat, start_lng, end_lat, end_lng):
+    distance_between_points = haversine_distance(start_lat, start_lng, end_lat, end_lng)
+    estimated_time_hours = time_to_reach_destination(distance_between_points, AVERAGE_SPEED_KPH)
+    hours = int(estimated_time_hours)
+    minutes = int((estimated_time_hours - hours) * 60)
+    estimated_time = f"{hours}h {minutes}m"
+    estimated_minutes = hours * 60 + minutes
+    return estimated_time, estimated_minutes
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     # Radio de la Tierra en kilómetros
     R = 6371.0
-
-    # Convertir latitud y longitud de grados a radianes
     lat1_rad = math.radians(lat1)
     lon1_rad = math.radians(lon1)
     lat2_rad = math.radians(lat2)
     lon2_rad = math.radians(lon2)
-
-    # Diferencia entre latitudes y longitudes
     dlat = lat2_rad - lat1_rad
     dlon = lon2_rad - lon1_rad
-
-    # Fórmula del haversine
     a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    # Distancia en kilómetros
     distance = R * c
     return distance
 
 def time_to_reach_destination(distance, average_speed):
-    # Tiempo en horas
     time_in_hours = distance / average_speed
     return time_in_hours
-
-
-def calculate_time_estimation(start_lat, start_lng, end_lat, end_lng):
-    # Calcular la distancia entre las ubicaciones de inicio y fin de la tarea en kilómetros
-    distance_between_points = haversine_distance(start_lat, start_lng, end_lat, end_lng)
-
-    # Calcular el tiempo estimado de la tarea en horas
-    estimated_time_hours = time_to_reach_destination(distance_between_points, AVERAGE_SPEED_KPH)
-
-    # Formatear el tiempo estimado en horas y minutos
-    hours = int(estimated_time_hours)
-    minutes = int((estimated_time_hours - hours) * 60)
-
-    # Agregar el tiempo estimado a la tarea
-    estimated_time = f"{hours}h {minutes}m"
-    estimated_minutes = hours * 60 + minutes
-
-    return estimated_time, estimated_minutes
-
-def calculate_total_time_estimation(checkpoints):
-    total_distance = 0
-
-    for i in range(len(checkpoints) - 1):
-        start_checkpoint = checkpoints[i]
-        end_checkpoint = checkpoints[i + 1]
-        start_lat = start_checkpoint["lat"]
-        start_lng = start_checkpoint["lng"]
-        end_lat = end_checkpoint["lat"]
-        end_lng = end_checkpoint["lng"]
-
-        # Calcular la distancia entre las ubicaciones de inicio y fin de la tarea en kilómetros
-        distance_between_points = haversine_distance(start_lat, start_lng, end_lat, end_lng)
-
-        # Acumular la distancia total
-        total_distance += distance_between_points
-
-    # Calcular el tiempo estimado de la ruta completa en horas
-    estimated_time_hours = time_to_reach_destination(total_distance, AVERAGE_SPEED_KPH)
-
-    # Formatear el tiempo estimado en horas y minutos
-    hours = int(estimated_time_hours)
-    minutes = int((estimated_time_hours - hours) * 60)
-
-    return f"{hours}h {minutes}m"
-
-# def calculate_distance_to_next_checkpoint(current_lat, current_lng, next_checkpoint):
-#     next_lat = next_checkpoint["lat"]
-#     next_lng = next_checkpoint["lng"]
-#     distance_to_next_checkpoint = haversine_distance(current_lat, current_lng, next_lat, next_lng)
-#     return distance_to_next_checkpoint
-
-def format_time1(days, hours, minutes):
-    formatted_time = ""
-    if days > 0:
-        formatted_time += f"{int(days)}d "
-    if hours > 0:
-        formatted_time += f"{int(hours)}h "
-    formatted_time += f"{int(minutes)}m"
-    return formatted_time
 
 def calculate_dynamic_distance_time(current_lat, current_lng, checkpoints):
     total_distance = 0
@@ -527,155 +334,44 @@ def calculate_dynamic_distance_time(current_lat, current_lng, checkpoints):
     return total_distance, formatted_time
 
 
-
-
-
-
-## /////// ------ ///////
-
-
-
-
-## Alert List
-def get_alerts_list():
-    url = f"{BASE_URL}/history/unread/list?hash={HASH_API}"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        data = response.json()
-        alarmas = [item["message"] for item in data["list"]]
-        patentes = list(set(item["extra"]["tracker_label"] for item in data["list"]))
-        recuento_patentes = [{ "patente": patente, "cantidad": sum(1 for item in data["list"] if item["extra"]["tracker_label"] == patente)} for patente in patentes]
-        patentes_ordenadas = sorted(patentes, key=lambda x: next((item["cantidad"] for item in recuento_patentes if item["patente"] == x), 0), reverse=True)
-        recuento_ordenado = sorted(recuento_patentes, key=lambda x: x["cantidad"], reverse=True)
-        localizaciones = [{ "patente": item["extra"]["tracker_label"], "location_lat": item["location"]["lat"], "location_lng": item["location"]["lng"], "location_address": item["location"]["address"] } for item in data["list"]]
-
-
-        return {
-            "alarm_list": alarmas,
-            "plate_list": patentes_ordenadas,
-            "plate_count_list": recuento_ordenado,
-            "plate_location_list": localizaciones
-        }
+def status_text(status):
+    if status == "failed":
+        return "no completado"
+    elif status == "assigned":
+        return "asignado"
+    elif status == "done":
+        return "completado"
     else:
-        print("Error:")
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
+        return status
+
+def format_time(seconds):
+    hours = seconds // 3600
+    remaining_seconds = seconds % 3600
+    minutes = remaining_seconds // 60
+    return f"{hours}h {minutes}m"
+
+def format_time1(days, hours, minutes):
+    formatted_time = ""
+    if days > 0:
+        formatted_time += f"{int(days)}d "
+    if hours > 0:
+        formatted_time += f"{int(hours)}h "
+    formatted_time += f"{int(minutes)}m"
+    return formatted_time
 
 
+def time_diff(arrival_date_str):
+    # Convertir la cadena en un objeto de fecha y hora
+    arrival_date = datetime.strptime(arrival_date_str, "%Y-%m-%d %H:%M:%S")
 
+    # Obtener la hora actual
+    current_time = datetime.now()
 
-## OLD
+    # Calcular la diferencia de tiempo entre la fecha de llegada y la hora actual
+    time_diff = current_time - arrival_date
 
-# def get_task_list(dateFrom=None, dateTo=None):
-#     url = f"{BASE_URL}/task/list"
-
-#     payload = {
-#         "trackers": [],
-#         "from": "",
-#         "to": "",
-#         "types": [
-#             "route",
-#             "task"
-#         ],
-#         "limit": 51,
-#         "offset": 0,
-#         "sort": [
-#             "to=desc"
-#         ],
-#         "hash": HASH_API
-#     }
-
-#     if dateFrom is not None:
-#         payload["from"] = dateFrom
-#     else:
-#         # Calcular fecha actual menos un mes
-#         last_month = datetime.now() - timedelta(days=30)
-#         payload["from"] = last_month.replace(hour=0, minute=0, second=0).strftime("%Y-%m-%d %H:%M:%S")
-
-#     if dateTo is not None:
-#         payload["to"] = dateTo
-#     else:
-#         # Calcular fecha actual
-#         payload["to"] = datetime.now().replace(hour=23, minute=59, second=59).strftime("%Y-%m-%d %H:%M:%S")
-
-
-#     response = requests.post(url, json=payload)
-
-#     if response.status_code == 200:
-#         data = response.json()
-#         filtered_data = filter_data(data)
-#         return filtered_data
-#     else:
-#         return {"error": "Failed to fetch data"}
-
-# def filter_data(data):
-#     filtered_list = []
-#     all_devices_list = get_tracker_list()
-
-
-#     for item in data["list"]:
-#         if item["status"] == "assigned":
-#             filtered_item = {
-#                 "id": item["id"],
-#                 "estado_tarea": item["status"],
-#                 "nombre_ruta": item["label"],
-#                 "tracker_id":  item["tracker_id"],
-#                 "checkpoint_ids": item["checkpoint_ids"],
-#                 "patente": [device["label"] for device in all_devices_list if device["id"] == item["tracker_id"]],
-#                 "checkpoints": [],
-#                 "tracker": {}
-#             }
-#             for checkpoint in item["checkpoints"]:
-#                 if checkpoint["status"] == "assigned":
-#                     filtered_item["checkpoints"].append({
-#                         "id": checkpoint["id"],
-#                         "tracker_id": checkpoint["tracker_id"],
-#                         "status": checkpoint["status"],
-#                         "checkpoint_nombre": checkpoint["label"],
-#                         "location": checkpoint["location"],
-#                         "fecha_llegada": checkpoint["arrival_date"],
-#                         "duracion_parada": checkpoint["stay_duration"],
-#                         "min_stay_duration": checkpoint["min_stay_duration"],
-#                         "min_arrival_duration": checkpoint["min_arrival_duration"],
-#                     })
-
-
-#             filtered_item["tracker"] = get_info_tracker(filtered_item["tracker_id"])
-#             filtered_list.append(filtered_item)
-
-#     return {
-#         "list": filtered_list,
-#         "count": len(filtered_list),
-#         "success": True
-#     }
-
-# def get_info_tracker(tracker_id):
-#     url = f"{BASE_URL}/tracker/get_state?tracker_id={tracker_id}&hash={HASH_API}"
-#     response = requests.get(url)
-#     if response.status_code == 200:
-#         data = (response.json())["state"]
-#     else:
-#         return {"error": "Failed to fetch data"}
-
-
-#     return {
-#         "id": tracker_id,
-#         "location": data["gps"]["location"],
-#         "gps": data["gps"],
-#         "connection_status": data["connection_status"],
-#         "movement_status": data["movement_status"],
-#         "actual_track_update": data["actual_track_update"]
-#     }
-
-# def get_tracker_list():
-#     url = f"{BASE_URL}/tracker/get_state?hash={HASH_API}"
-#     response = requests.get(url)
-#     if response.status_code == 200:
-#         data = (response.json())["list"]
-#     else:
-#         return []
-
-
-
-# if __name__ == "__main__":
-#     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    # Verificar si han pasado más de 15 minutos desde la llegada
+    if time_diff > timedelta(minutes=15):
+        return True
+    else:
+        return False
