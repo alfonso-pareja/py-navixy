@@ -81,6 +81,7 @@ def build_navixy():
             
             if time_to_arribe is False:
                 formatted_task = {
+                    "status": "IN_PROGRESS",
                     "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
                     "estimated_time_arrival": get_distance_and_time(current_location, end_location)[1],
                     "initial_route_name": task["checkpoint_start"]["label"],
@@ -114,6 +115,7 @@ def build_navixy():
         else:
       
             formatted_task = {
+                "status": "IN_PROGRESS",
                 "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
                 # "estimated_time_arrival_FROMSERVICE": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
                 # "estimated_time_arrival_FROMACTUAL": get_distance_service(current_lat, current_lng,  end_lat, end_lng)[1],
