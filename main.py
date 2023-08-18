@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from datetime import datetime, timedelta
+from geopy.distance import geodesic
 import pytz
 import math
 import requests
@@ -7,8 +8,9 @@ import requests
 app = FastAPI()
 
 BASE_URL = 'https://apigps.fiordoaustral.com'
-HASH_API = '616c1befc270f3e662ae1cb0df89d030'
+HASH_API = '7c06cc38ec9f36bd773dc79beb24a85d'
 AVERAGE_SPEED_KPH = 47
+GOOGLEMAPS_API_KEY = 'AIzaSyA1rnpXPXbi_A0UC_2iMAZLAWbmYFvlri8'
 
 @app.get("/v1/navixy")
 def get_info_navixy():
@@ -78,7 +80,7 @@ def build_navixy():
             if time_to_arribe is False:
                 formatted_task = {
                     "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
-                    "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
+                    "estimated_time_arrival": get_distance_and_time(current_location, end_location)[1],
                     "initial_route_name": task["checkpoint_start"]["label"],
                     "destination_route_name": task["checkpoint_end"]["label"],
                     "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
@@ -98,9 +100,13 @@ def build_navixy():
             else:
                 print(f'{tracker[0]["label"]} Termino el recorrido y pasaron mas de 15 minutos')
         else:
+            current_location = f"{current_lat},{current_lng}"
+            end_location = f"{end_lat},{end_lng}"
             formatted_task = {
                 "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
-                "estimated_time_arrival": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
+                # "estimated_time_arrival_FROMSERVICE": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
+                # "estimated_time_arrival_FROMACTUAL": get_distance_service(current_lat, current_lng,  end_lat, end_lng)[1],
+                "estimated_time_arrival": get_distance_and_time(current_location, end_location)[1],
                 "initial_route_name": task["checkpoint_start"]["label"],
                 "destination_route_name": task["checkpoint_end"]["label"],
                 "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
@@ -335,6 +341,76 @@ def calculate_dynamic_distance_time(current_lat, current_lng, checkpoints):
     return total_distance, formatted_time
 
 
+# def calcular_distancia_tiempo_total(checkpoints, ubicacion_actual, velocidad_promedio):
+#     coordenadas_checkpoints = {}
+#     checkpoints_visitados = []
+#     for checkpoint in checkpoints:
+#         print(checkpoint)
+#         nombre = str(checkpoint['id'])
+#         latitud = checkpoint['lat']
+#         longitud = checkpoint['lng']
+#         coordenadas_checkpoints[nombre] = (latitud, longitud)
+#         if checkpoint['status'] == 'done':
+#             checkpoints_visitados.append(nombre)
+
+#     # Encontrar los checkpoints no visitados (C y D)
+#     checkpoints_no_visitados = [nombre for nombre in coordenadas_checkpoints if nombre not in checkpoints_visitados]
+
+#     # Encontrar la distancia desde la ubicación actual a cada checkpoint
+#     distancias_desde_ubicacion_actual = {}
+#     for nombre, coordenadas in coordenadas_checkpoints.items():
+#         distancia = geodesic(ubicacion_actual, coordenadas).kilometers
+#         distancias_desde_ubicacion_actual[nombre] = distancia
+
+#     # Encontrar la ruta más corta desde la ubicación actual hasta C usando Dijkstra
+#     ruta_mas_corta_hasta_C = None
+#     distancia_ruta_mas_corta_hasta_C = math.inf
+
+#     for checkpoint in checkpoints_no_visitados:
+#         distancia = distancias_desde_ubicacion_actual[checkpoint]
+#         if distancia < distancia_ruta_mas_corta_hasta_C:
+#             ruta_mas_corta_hasta_C = checkpoint
+#             distancia_ruta_mas_corta_hasta_C = distancia
+
+#     # Calcular la distancia desde C hasta D
+#     checkpoint_C = coordenadas_checkpoints[ruta_mas_corta_hasta_C]
+#     checkpoint_D = coordenadas_checkpoints[checkpoints_no_visitados[-1]]
+#     distancia_C_a_D = geodesic(checkpoint_C, checkpoint_D).kilometers
+
+#     # Calcular la distancia total desde la ubicación actual hasta D pasando por C
+#     distancia_total = distancia_ruta_mas_corta_hasta_C + distancia_C_a_D
+
+#     # Calcular el tiempo total considerando la velocidad promedio
+#     tiempo_total = (distancia_total * 60) / velocidad_promedio
+
+#     return distancia_total, format_time_minutes(tiempo_total)
+
+def get_distance_and_time(origin, destination):
+    base_url = "https://maps.googleapis.com/maps/api/directions/json"
+    params = {
+        "origin": origin,
+        "destination": destination,
+        "key": GOOGLEMAPS_API_KEY,
+    }
+
+    response = requests.get(base_url, params=params)
+    data = response.json()
+
+    if data["status"] == "OK" and len(data["routes"]) > 0:
+        distance_in_meters = data["routes"][0]["legs"][0]["distance"]["value"]
+        distance_in_kilometers = distance_in_meters / 1000
+
+        duration_in_seconds = data["routes"][0]["legs"][0]["duration"]["value"]
+        duration_formatted = format_time(duration_in_seconds)
+
+        return distance_in_kilometers, duration_formatted
+    else:
+        return None, None
+
+
+
+
+
 def status_text(status):
     if status == "failed":
         return "no completado"
@@ -344,6 +420,17 @@ def status_text(status):
         return "completado"
     else:
         return status
+
+def format_time_minutes(minutes):
+    hours = minutes // 60
+    minutes %= 60
+
+    if hours == 0:
+        return f"{int(minutes)}m"
+    elif minutes == 0:
+        return f"{int(hours)}h"
+    else:
+        return f"{int(hours)}h {(minutes)}m"
 
 def format_time(seconds):
     hours = seconds // 3600
