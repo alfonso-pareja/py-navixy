@@ -74,6 +74,8 @@ def build_navixy():
 
         task_status = calculate_task_status(task, current_lat, current_lng)
 
+        current_location = f"{current_lat},{current_lng}"
+        end_location = f"{end_lat},{end_lng}"
         if task_status == 'Arribado':
             time_to_arribe = time_diff(task["checkpoint_end"]["arrival_date"])
             
@@ -98,10 +100,19 @@ def build_navixy():
 
                 }
             else:
+                formatted_task = {
+                    "status": "TERMINATED",
+                    "tracker_label":  tracker[0]["label"],
+                    "Message": f'{tracker[0]["label"]} Termino el recorrido y pasaron mas de 15 minutos',
+                    "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
+                    "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
+                    "date": formatted_time,
+                    "task_name": task["route_name"],
+                    "task_status": task["status_task"],
+                }
                 print(f'{tracker[0]["label"]} Termino el recorrido y pasaron mas de 15 minutos')
         else:
-            current_location = f"{current_lat},{current_lng}"
-            end_location = f"{end_lat},{end_lng}"
+      
             formatted_task = {
                 "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
                 # "estimated_time_arrival_FROMSERVICE": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
@@ -304,6 +315,8 @@ def calculate_dynamic_distance_time(current_lat, current_lng, checkpoints):
     total_distance = 0
     total_time_in_minutes = 0
 
+    current_location = f"{current_lat},{current_lng}"
+
     # Encuentra el índice del siguiente punto no completado (que aún no ha sido visitado)
     next_uncompleted_index = -1
     for index, checkpoint in enumerate(checkpoints):
@@ -317,10 +330,16 @@ def calculate_dynamic_distance_time(current_lat, current_lng, checkpoints):
         next_checkpoint = checkpoints[next_uncompleted_index]
         checkpoint_lat = next_checkpoint["lat"]
         checkpoint_lng = next_checkpoint["lng"]
-        distance_to_next_checkpoint = haversine_distance(current_lat, current_lng, checkpoint_lat, checkpoint_lng)
-        time_to_next_checkpoint = time_to_reach_destination(distance_to_next_checkpoint, AVERAGE_SPEED_KPH)
 
-        total_distance += distance_to_next_checkpoint
+        end_location = f"{checkpoint_lat},{checkpoint_lng}"
+
+        distance_to_next_checkpoint = get_distance_and_time(current_location, end_location)[0],
+        distance = distance_to_next_checkpoint[0]
+        print(distance)
+        # distance_to_next_checkpoint = haversine_distance(current_lat, current_lng, checkpoint_lat, checkpoint_lng)
+        time_to_next_checkpoint = time_to_reach_destination(distance, AVERAGE_SPEED_KPH)
+
+        total_distance += distance
         total_time_in_minutes += time_to_next_checkpoint * 60
 
         # Actualiza la ubicación actual con la ubicación del siguiente punto no completado
@@ -398,12 +417,12 @@ def get_distance_and_time(origin, destination):
 
     if data["status"] == "OK" and len(data["routes"]) > 0:
         distance_in_meters = data["routes"][0]["legs"][0]["distance"]["value"]
-        distance_in_kilometers = distance_in_meters / 1000
+        # distance_in_kilometers = distance_in_meters / 1000
 
         duration_in_seconds = data["routes"][0]["legs"][0]["duration"]["value"]
         duration_formatted = format_time(duration_in_seconds)
 
-        return distance_in_kilometers, duration_formatted
+        return distance_in_meters, duration_formatted
     else:
         return None, None
 
