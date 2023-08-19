@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from datetime import datetime, timedelta
 from geopy.distance import geodesic
+from typing import Optional
 import pytz
 import math
 import requests
@@ -13,7 +14,7 @@ AVERAGE_SPEED_KPH = 47
 GOOGLEMAPS_API_KEY = 'AIzaSyA1rnpXPXbi_A0UC_2iMAZLAWbmYFvlri8'
 
 @app.get("/v1/navixy")
-def get_info_navixy():
+def get_info_navixy(days: Optional[int] = None):
     global HASH_API
     # Realiza la consulta previa para verificar si el hash es válido
     if not is_valid_hash(HASH_API):
@@ -21,7 +22,7 @@ def get_info_navixy():
         HASH_API = renew_hash()
 
     # Continúa con la función build_navixy()
-    return build_navixy()
+    return build_navixy(days)
 
 
 def is_valid_hash(hash_value):
@@ -49,98 +50,101 @@ def renew_hash():
     raise HTTPException(status_code=500, detail="Failed to obtain a valid hash")
 
 
+def get_formatted_time():
+    local_now = datetime.now()
+    santiago_timezone = pytz.timezone('America/Santiago')
+    santiago_now = local_now.astimezone(santiago_timezone)
+    formatted_time = santiago_now.strftime("%Y-%m-%d %H:%M:%S")
+    return formatted_time
 
-def build_navixy():
+def build_navixy(daysToGetInfo: Optional[int]):
     trackers = get_tracker_list_filtered()
-    task_list = get_trackers_task_list()
+    task_list = get_trackers_task_list(daysToGetInfo)
 
     formatted_response = []
     formatted_task = {}
     for task in task_list:
         tracker = [track for track in trackers if track["id"] == task["tracker_id"]]
-        local_now = datetime.now()
-        santiago_timezone = pytz.timezone('America/Santiago')
-        santiago_now = local_now.astimezone(santiago_timezone)
-        formatted_time = santiago_now.strftime("%Y-%m-%d %H:%M:%S")
 
-        start_lat = task["checkpoint_start"]["lat"]
-        start_lng = task["checkpoint_start"]["lng"]
-        end_lat = task["checkpoint_end"]["lat"]
-        end_lng = task["checkpoint_end"]["lng"]
+        first_check_lat  = task["checkpoint_start"]["lat"]
+        first_check_lng  = task["checkpoint_start"]["lng"]
+        last_check_lng   = task["checkpoint_end"]["lat"]
+        last_check_lng   = task["checkpoint_end"]["lng"]
 
         track_location = get_tracker_location(task["tracker_id"])
-        current_lat = track_location["track_location_lat"]
-        current_lng = track_location["track_location_lng"]
-
-        task_status = calculate_task_status(task, current_lat, current_lng)
+        current_lat    = track_location["track_location_lat"]
+        current_lng    = track_location["track_location_lng"]
 
         current_location = f"{current_lat},{current_lng}"
-        end_location = f"{end_lat},{end_lng}"
+        end_location     = f"{last_check_lng},{last_check_lng}"
+
+        formatted_time = get_formatted_time()
+        task_status    = calculate_task_status(task, current_lat, current_lng)
+
+
+        formatted_task = {
+            "status": '',
+            "estimated_time": '',
+            "estimated_time_arrival": '',
+            "initial_route_name":       task["checkpoint_start"]["label"],
+            "destination_route_name":   task["checkpoint_end"]["label"],
+            "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
+            "arrival_date_last_check":  task["checkpoint_end"]["arrival_date"],
+            "firts_checkpoint_lat":     first_check_lat,
+            "firts_checkpoint_lng":     first_check_lng,
+            "end_checkpoint_lat":       last_check_lng,
+            "end_checkpoint_lng":       last_check_lng,
+            "route_name":               task["route_name"],
+            "tracker_location_lat":     current_lat,
+            "tracker_location_lng":     current_lng,
+            "tracker_device_movement":  track_location["tracker_device_movement"],
+            "tracker_label":            tracker[0]["label"],
+            "tracker_speed":            track_location["tracker_speed"],
+            "task_name":                task["route_name"],
+            "task_status":              task["status_task"],
+            "state":                    task_status,
+            "check_completed":          task["check_completed"],
+            "last_checkpoint":          task["last_checkpoint"],
+            "date":                     formatted_time
+        }
+
+
+        # Trackers ruta Finalizada
         if task_status == 'Arribado':
-            time_to_arribe = time_diff(task["checkpoint_end"]["arrival_date"])
-            
-            if time_to_arribe is False:
-                formatted_task = {
-                    "status": "IN_PROGRESS",
-                    "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
-                    "estimated_time_arrival": get_distance_and_time(current_location, end_location)[1],
-                    "initial_route_name": task["checkpoint_start"]["label"],
-                    "destination_route_name": task["checkpoint_end"]["label"],
-                    "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
-                    "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
-                    "route_name": task["route_name"],
-                    "tracker_location_lat": current_lat,
-                    "tracker_location_lng": current_lng,
-                    "tracker_device_movement": track_location["tracker_device_movement"],
-                    "tracker_label":  tracker[0]["label"],
-                    "tracker_speed": track_location["tracker_speed"],
-                    "task_name": task["route_name"],
-                    "task_status": task["status_task"],
-                    "state": calculate_task_status(task, current_lat, current_lng),
-                    "date": formatted_time
+            ## Calcular el tiempo transcurrido tras la llegada, retorna True si pasaron mas de 15 minutos
+            timediff_to_arribe = time_diff(task["checkpoint_end"]["arrival_date"])
 
-                }
+            # Si transcurrieron mas de 15 minutos, se informa del tiempo
+            if timediff_to_arribe > timedelta(minutes=15):
+                formatted_task['status']       =  "TERMINATED"
+                formatted_task['Message']      =  f'{tracker[0]["label"]} Termino el recorrido y pasaron mas de 15 minutos'
+                formatted_task['finished_ago'] = format_timedelta(timediff_to_arribe)
+                formatted_task['estimated_time'] = "0h 0m"
+                formatted_task['estimated_time_arrival'] = "0h 0m"
+
+            # Si aun no transcurren los 15 minutos, pero ya finalizo el recorrido
             else:
-                formatted_task = {
-                    "status": "TERMINATED",
-                    "tracker_label":  tracker[0]["label"],
-                    "Message": f'{tracker[0]["label"]} Termino el recorrido y pasaron mas de 15 minutos',
-                    "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
-                    "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
-                    "date": formatted_time,
-                    "task_name": task["route_name"],
-                    "task_status": task["status_task"],
-                }
-                print(f'{tracker[0]["label"]} Termino el recorrido y pasaron mas de 15 minutos')
+                formatted_task['status'] = 'IN_PROGRESS'
+                formatted_task['Message'] = f'{tracker[0]["label"]} Finalizo el recorrido hace {format_timedelta(timediff_to_arribe)}'
+                formatted_task['estimated_time'] = get_distance_service(first_check_lat, first_check_lng, last_check_lng, last_check_lng)[1]
+                formatted_task['estimated_time_arrival'] = get_distance_and_time(current_location, end_location)[1]
+                
+        # Trackers en ruta
         else:
-      
-            formatted_task = {
-                "status": "IN_PROGRESS",
-                "estimated_time": get_distance_service(start_lat, start_lng, end_lat, end_lng)[1],
-                # "estimated_time_arrival_FROMSERVICE": calculate_dynamic_distance_time(current_lat, current_lng,  task["checkpoints"])[1],
-                # "estimated_time_arrival_FROMACTUAL": get_distance_service(current_lat, current_lng,  end_lat, end_lng)[1],
-                "estimated_time_arrival": get_distance_and_time(current_location, end_location)[1],
-                "initial_route_name": task["checkpoint_start"]["label"],
-                "destination_route_name": task["checkpoint_end"]["label"],
-                "arrival_date_first_check": task["checkpoint_start"]["arrival_date"],
-                "arrival_date_last_check": task["checkpoint_end"]["arrival_date"],
+            formatted_task['status'] = 'IN_PROGRESS'
+            formatted_task['estimated_time'] = get_distance_service(first_check_lat, first_check_lng, last_check_lng, last_check_lng)[1]
+            formatted_task['estimated_time_arrival'] = get_distance_and_time(current_location, end_location)[1]
 
-                "firts_checkpoint_lat": start_lat,
-                "firts_checkpoint_lng": start_lng,
-                "end_checkpoint_lat": end_lat,
-                "end_checkpoint_lng": end_lng,
 
-                "route_name": task["route_name"],
-                "tracker_location_lat": current_lat,
-                "tracker_location_lng": current_lng,
-                "tracker_device_movement": track_location["tracker_device_movement"],
-                "tracker_label":  tracker[0]["label"],
-                "tracker_speed": track_location["tracker_speed"],
-                "task_name": task["route_name"],
-                "task_status": task["status_task"],
-                "state": calculate_task_status(task, current_lat, current_lng),
-                "date": formatted_time
-            }
+            if task_status == 'Asignado' :
+                formatted_task['Message'] = f'{tracker[0]["label"]} Aun no ingresa al primer Checkpoint'
+
+            if task_status == 'Transito':
+                formatted_task['Message'] = f'{tracker[0]["label"]} ha completado {formatted_task["check_completed"]} Checkpoints. Ultimo Checkpoint {formatted_task["last_checkpoint"]}'
+
+            # Iniciada
+            else:
+                formatted_task['Message'] = f'{tracker[0]["label"]} acaba de iniciar la ruta hace unos minutos.'
 
         if formatted_task:
             formatted_response.append(formatted_task)
@@ -153,15 +157,14 @@ def build_navixy():
 def calculate_task_status(task, current_lat, current_lng):
     if task["checkpoint_end"]["status"] == "done":
         return "Arribado"
-
-    estimated_time_to_first = calculate_time_estimation(task["checkpoint_start"]["lat"], task["checkpoint_start"]["lng"], current_lat, current_lng) 
-    if (estimated_time_to_first[1] >= 30) :
-        return "Transito"
-
+    
     if task["checkpoint_start"]["status"] == "done":
+        estimated_time_to_first = calculate_time_estimation(task["checkpoint_start"]["lat"], task["checkpoint_start"]["lng"], current_lat, current_lng) 
+        if (estimated_time_to_first[1] >= 30) :
+            return "Transito"
         return "Iniciada"
     
-    return ''
+    return 'Asignado'
    
 
 def status_sort_key(task):
@@ -229,10 +232,11 @@ def get_distance_service(start_lat, start_lng, end_lat, end_lng):
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data")
 
 
-def get_trackers_task_list():
-    current_date = datetime.now()
+def get_trackers_task_list(daysToGetInfo: Optional[int]):
+    daysToGetInfo = 1 if daysToGetInfo is None else daysToGetInfo
+    current_date  = datetime.now()
     tomorrow_date = current_date + timedelta(days=1)
-    from_date_str = current_date.strftime("%Y-%m-%d 00:00:00")
+    from_date_str = (current_date - timedelta(days=daysToGetInfo)).strftime("%Y-%m-%d 23:59:59")
     to_date_str   = tomorrow_date.strftime("%Y-%m-%d 23:59:59")
 
     body = {
@@ -242,6 +246,8 @@ def get_trackers_task_list():
         
         "hash": HASH_API
     }
+
+    print(body)
 
     url = f"{BASE_URL}/task/list"
     response = requests.post(url, json=body)
@@ -257,27 +263,33 @@ def extract_data_task_list(item):
     checkpoints_data = []
     for checkpoint in item["checkpoints"]:
         checkpoint_data = {
-            "tracker_id": checkpoint["tracker_id"],
-            "status": checkpoint["status"],
-            "label": checkpoint["label"],
-            "description": checkpoint["description"],
-            "origin": checkpoint["origin"],
-            "lat": checkpoint["location"]["lat"],
-            "lng": checkpoint["location"]["lng"],
-            "address": checkpoint["location"]["address"],
+            "tracker_id":   checkpoint["tracker_id"],
+            "status":       checkpoint["status"],
+            "label":        checkpoint["label"],
+            "description":  checkpoint["description"],
+            "origin":       checkpoint["origin"],
+            "lat":          checkpoint["location"]["lat"],
+            "lng":          checkpoint["location"]["lng"],
+            "address":      checkpoint["location"]["address"],
             "arrival_date": checkpoint["arrival_date"],
-            "id": checkpoint["id"]
+            "id":           checkpoint["id"]
         }
         checkpoints_data.append(checkpoint_data)
 
+    completed_checkpoints = sum(1 for checkpoint in checkpoints_data if checkpoint["arrival_date"] is not None)
+    total_checkpoints     = len(checkpoints_data)
+
+    index_checkpoint = completed_checkpoints-1
     return {
-        "checkpoints": checkpoints_data,
+        "checkpoints":      checkpoints_data,
+        "check_completed":   f"{completed_checkpoints}/{total_checkpoints}",
+        "last_checkpoint":  checkpoints_data[index_checkpoint]["label"] if 0 <= index_checkpoint < len(checkpoints_data) else '',
         "checkpoint_start": checkpoints_data[0] if checkpoints_data else None,
-        "checkpoint_end": checkpoints_data[-1] if checkpoints_data else None,
-        "tracker_id": item["tracker_id"],
-        "status_task": item["status"],
-        "status_label": status_text(item["status"]),
-        "route_name": item["label"]
+        "checkpoint_end":   checkpoints_data[-1] if checkpoints_data else None,
+        "tracker_id":       item["tracker_id"],
+        "status_task":      item["status"],
+        "status_label":     status_text(item["status"]),
+        "route_name":       item["label"]
     }
 
 
@@ -468,6 +480,15 @@ def format_time1(days, hours, minutes):
     formatted_time += f"{int(minutes)}m"
     return formatted_time
 
+def format_timedelta(td):
+    # Calcular el total de segundos en el timedelta
+    total_seconds = td.total_seconds()
+
+    # Calcular horas y minutos
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+
+    return f"{hours}h {minutes}m"
 
 def time_diff(arrival_date_str):
     # Convertir la cadena en un objeto de fecha y hora
@@ -479,8 +500,5 @@ def time_diff(arrival_date_str):
     # Calcular la diferencia de tiempo entre la fecha de llegada y la hora actual
     time_diff = current_time - arrival_date
 
-    # Verificar si han pasado más de 15 minutos desde la llegada
-    if time_diff > timedelta(minutes=15):
-        return True
-    else:
-        return False
+    return time_diff
+
