@@ -1,17 +1,26 @@
 from fastapi import FastAPI, HTTPException
 from datetime import datetime, timedelta
 from geopy.distance import geodesic
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+
 from typing import Optional
 import pytz
 import math
 import requests
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 BASE_URL = 'https://apigps.fiordoaustral.com'
 HASH_API = '7c06cc38ec9f36bd773dc79beb24a85d'
 AVERAGE_SPEED_KPH = 47
 GOOGLEMAPS_API_KEY = 'AIzaSyA1rnpXPXbi_A0UC_2iMAZLAWbmYFvlri8'
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    return templates.TemplateResponse("bi.html", { "request": {}, "title": "HOla"})
+
 
 @app.get("/v1/navixy")
 def get_info_navixy(days: Optional[int] = None):
@@ -26,11 +35,8 @@ def get_info_navixy(days: Optional[int] = None):
 
 
 def is_valid_hash(hash_value):
-    # Realiza la consulta para verificar si el hash es válido
     url = f"{BASE_URL}/tracker/readings/list?tracker_id=289&hash={hash_value}"
     response = requests.get(url)
-
-    # Si la respuesta es 200, el hash es válido, de lo contrario, no lo es
     return response.status_code == 200
 
 def renew_hash():
@@ -68,7 +74,7 @@ def build_navixy(daysToGetInfo: Optional[int]):
 
         first_check_lat  = task["checkpoint_start"]["lat"]
         first_check_lng  = task["checkpoint_start"]["lng"]
-        last_check_lng   = task["checkpoint_end"]["lat"]
+        last_check_lat   = task["checkpoint_end"]["lat"]
         last_check_lng   = task["checkpoint_end"]["lng"]
 
         track_location = get_tracker_location(task["tracker_id"])
@@ -76,7 +82,8 @@ def build_navixy(daysToGetInfo: Optional[int]):
         current_lng    = track_location["track_location_lng"]
 
         current_location = f"{current_lat},{current_lng}"
-        end_location     = f"{last_check_lng},{last_check_lng}"
+        end_location     = f"{last_check_lat},{last_check_lng}"
+
 
         formatted_time = get_formatted_time()
         task_status    = calculate_task_status(task, current_lat, current_lng)
@@ -126,13 +133,13 @@ def build_navixy(daysToGetInfo: Optional[int]):
             else:
                 formatted_task['status'] = 'IN_PROGRESS'
                 formatted_task['Message'] = f'{tracker[0]["label"]} Finalizo el recorrido hace {format_timedelta(timediff_to_arribe)}'
-                formatted_task['estimated_time'] = get_distance_service(first_check_lat, first_check_lng, last_check_lng, last_check_lng)[1]
+                formatted_task['estimated_time'] = get_distance_service(first_check_lat, first_check_lng, last_check_lat, last_check_lng)[1]
                 formatted_task['estimated_time_arrival'] = get_distance_and_time(current_location, end_location)[1]
                 
         # Trackers en ruta
         else:
             formatted_task['status'] = 'IN_PROGRESS'
-            formatted_task['estimated_time'] = get_distance_service(first_check_lat, first_check_lng, last_check_lng, last_check_lng)[1]
+            formatted_task['estimated_time'] = get_distance_service(first_check_lat, first_check_lng, last_check_lat, last_check_lng)[1]
             formatted_task['estimated_time_arrival'] = get_distance_and_time(current_location, end_location)[1]
 
 
@@ -247,7 +254,6 @@ def get_trackers_task_list(daysToGetInfo: Optional[int]):
         "hash": HASH_API
     }
 
-    print(body)
 
     url = f"{BASE_URL}/task/list"
     response = requests.post(url, json=body)
@@ -349,7 +355,7 @@ def calculate_dynamic_distance_time(current_lat, current_lng, checkpoints):
 
         distance_to_next_checkpoint = get_distance_and_time(current_location, end_location)[0],
         distance = distance_to_next_checkpoint[0]
-        print(distance)
+
         # distance_to_next_checkpoint = haversine_distance(current_lat, current_lng, checkpoint_lat, checkpoint_lng)
         time_to_next_checkpoint = time_to_reach_destination(distance, AVERAGE_SPEED_KPH)
 
