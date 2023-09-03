@@ -21,6 +21,7 @@
         }
         .card{
             box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+            margin:10px;
         }
     </style>
     <style>
@@ -29,7 +30,7 @@
             width: 100%;
             padding: 10px;
             border-collapse: collapse;
-            margin: 25px 0;
+            margin: 5px;
             font-size: 0.9em;
             font-family: sans-serif;
             min-width: 400px;
@@ -68,7 +69,7 @@
         display: flex;
         flex-direction: row;
         flex-wrap: nowrap;
-        justify-content: space-around;
+        justify-content: space-between;
         align-items: normal;
         align-content: normal;
         }
@@ -107,101 +108,171 @@
     </style>
 </head>
 <body>
-    <h1 class="text-3xl font-bold underline text-clifford">
-        Fiordo Autralopitecus
-      </h1>
+    <h1 class="text-3xl font-bold text-clifford">
+        Fiordo Austral
+    </h1>
     <!-- <div id="loading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.8); z-index: 1000;">
         <p style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">Loading...</p>
     </div> -->
 
-    <div class="flex-container">
-        <div class="flex-items">
-            <a href="#" class="card block max-w-sm p-6 bg-white border  rounded-lg dark:bg-gray-800 dark:border-gray-700 min-width-400">
-                <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Patentes </h5>
-                <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
-                <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
-                <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
-                <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
-                <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
-            </a>
+    <section style="margin: 50px">
+        <div class="flex-container">
+            <div class="flex-items">
+                <a href="#" class="card block max-w-sm p-6 bg-white border  rounded-lg dark:bg-gray-800 dark:border-gray-700 min-width-400" id="trackerslabelcontainer">
+                    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Patentes </h5>
+                    <!-- <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
+                    <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
+                    <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
+                    <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button>
+                    <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">ABCD12</button> -->
+                </a>
+            </div>
+            <div class="flex-items">
+                <a href="#" class="card block max-w-sm p-6 bg-white border  rounded-lg dark:bg-gray-800 dark:border-gray-700" id="destinationRouteContainer">
+                    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white min-width-400">Destinos </h5>
+                    <!-- <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Sasa Algo</button>
+                    <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Sasa Algo</button> -->
+                </a>
+            </div>
         </div>
-        <div class="flex-items">
-            <a href="#" class="card block max-w-sm p-6 bg-white border  rounded-lg dark:bg-gray-800 dark:border-gray-700">
-                <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white min-width-400">Destinos </h5>
-                <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Sasa Algo</button>
-                <button type="button" class="py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Sasa Algo</button>
-            </a>
+    
+        <div class="card bg-white border rounded-lg dark:bg-gray-800 dark:border-gray-700 flex-center">
+            <table id="tableInProgress" style="min-width: 600px; max-width: 100%" class="styled-table"> 
+                <thead>
+                    <tr>
+                        <th>Tiempo Estimado</th>
+                        <th>Tiempo Arribo</th>
+                        <th>Patente</th>
+                        <th>Destino</th>
+                        <th>Nombre Tarea</th>
+                        <th>Estado Tarea</th>
+                        <th>Estado</th>
+                        <th>Tracker Estado</th>
+                    </tr>
+                </thead>
+    
+    
+            </table>
         </div>
-     </div>
+    
+        <div class="card bg-white border rounded-lg dark:bg-gray-800 dark:border-gray-700 flex-center">
+            <table id="itemsContainer" style="min-width: 600px; max-width: 100%" class="styled-table"> 
+                <thead>
+                    <tr>
+                        <th>Tiempo Estimado</th>
+                        <th>Tiempo Arribo</th>
+                        <th>Patente</th>
+                        <th>Destino</th>
+                        <th>Nombre Tarea</th>
+                        <th>Estado Tarea</th>
+                        <th>Estado</th>
+                        <th>Tracker Estado</th>
+                    </tr>
+                </thead>
+    
+    
+            </table>
+        </div>
+    </section>
 
-    <div class="flex-center">
-        <table id="itemsContainer" style="min-width: 600px; max-width: 90%" class="card styled-table"> 
-            <thead>
-                <tr>
-                    <th>Tiempo Arribo</th>
-                    <th>Patente</th>
-                    <th>Destino</th>
-                    <th>Nombre Tarea</th>
-                    <th>Estado Tarea</th>
-                    <th>Estado</th>
-                    <th>Tracker Estado</th>
-                </tr>
-            </thead>
-
-
-        </table>
-    </div>
 
     <script>
         window.onload = function () {
             // document.getElementById("loading").style.display = "block";
 
             // Realiza una solicitud AJAX para obtener los items
-            fetch('/v1/navixy?days=2')
+            fetch('/v1/navixy')
                 .then(response => response.json())
                 .then(data => {
+
                     const table = document.getElementById("itemsContainer");
+                    const tableInProgress = document.getElementById("tableInProgress");
+                    const trackerslabelcontainer = document.getElementById("trackerslabelcontainer");
+                    const destinationRouteContainer = document.getElementById("destinationRouteContainer");
+
                     let tbody   = document.createElement("tbody");
+                    let tbody2   = document.createElement("tbody");
+
+                    let tracksLabel = new Set();
+                    let destinationRoute = new Set();
 
                     data.forEach(item => {
-                        if (item.status === 'TERMINATED') {
-                            // Crear una única fila para todos los datos de un item
-                            let tr = document.createElement("tr");
+                        tracksLabel.add(item.tracker_label);
+                        destinationRoute.add(item.destination_route_name)
 
-                            // Crear celdas para cada dato y agregarlas a la fila
-                            let tdTimeArrival = document.createElement("td");
-                            tdTimeArrival.textContent = item.estimated_time_arrival;
-                            tr.appendChild(tdTimeArrival);
+                        let tr = document.createElement("tr");
 
-                            let tdCarId = document.createElement("td");
-                            tdCarId.textContent = item.tracker_label;
-                            tr.appendChild(tdCarId);
+                        let tdTimeArrival = document.createElement("td");
+                        tdTimeArrival.textContent = item.estimated_time;
+                        tr.appendChild(tdTimeArrival);
 
-                            let tdDistination = document.createElement("td");
-                            tdDistination.textContent = item.destination_route_name;
-                            tr.appendChild(tdDistination);
+                        let tdEstimatedTimeArrival = document.createElement("td");
+                        tdEstimatedTimeArrival.textContent = item.estimated_time_arrival;
+                        tr.appendChild(tdEstimatedTimeArrival);
 
-                            let tdTaskName = document.createElement("td");
-                            tdTaskName.textContent = item.task_name;
-                            tr.appendChild(tdTaskName);
+                        let tdCarId = document.createElement("td");
+                        tdCarId.textContent = item.tracker_label;
+                        tr.appendChild(tdCarId);
 
-                            let tdTaskStatus = document.createElement("td");
-                            tdTaskStatus.textContent = item.task_status;
-                            tr.appendChild(tdTaskStatus);
+                        let tdDistination = document.createElement("td");
+                        tdDistination.textContent = item.destination_route_name;
+                        tr.appendChild(tdDistination);
 
-                            let tdStatus = document.createElement("td");
-                            tdStatus.textContent = item.state;
-                            tr.appendChild(tdStatus);
+                        let tdTaskName = document.createElement("td");
+                        tdTaskName.textContent = item.task_name;
+                        tr.appendChild(tdTaskName);
 
-                            let tdTrackerStatus = document.createElement("td");
-                            tdTrackerStatus.textContent = item.tracker_device_movement;
-                            tr.appendChild(tdTrackerStatus);
+                        let tdTaskStatus = document.createElement("td");
+                        tdTaskStatus.textContent = item.task_status;
+                        tr.appendChild(tdTaskStatus);
 
+                        let tdStatus = document.createElement("td");
+                        tdStatus.textContent = item.state;
+                        tr.appendChild(tdStatus);
+
+                        let tdTrackerStatus = document.createElement("td");
+                        tdTrackerStatus.textContent = item.tracker_device_movement;
+                        tr.appendChild(tdTrackerStatus);
+
+                        
+                        if(item.status === 'IN_PROGRESS'){
                             tbody.appendChild(tr);
+                        }
+
+                        if (item.status === 'TERMINATED') {
+                            tbody2.appendChild(tr);
                         }    
                         
+                        
                     })
-                    table.appendChild(tbody);
+
+
+                    tracksLabel = [...tracksLabel]
+                    destinationRoute = [...destinationRoute]
+                    tableInProgress.appendChild(tbody);
+                    table.appendChild(tbody2);
+
+                    tracksLabel && tracksLabel.length &&
+                    tracksLabel.map((track) => {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
+                        button.textContent = track;
+
+                        trackerslabelcontainer.appendChild(button);
+                    })
+                    
+                    destinationRoute && destinationRoute.length &&
+                    destinationRoute.map((dest) => {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "py-2.5 px-5 mr-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
+                        button.textContent = dest;
+
+                        destinationRouteContainer.appendChild(button);
+                    })
+
+
 
 
                     // document.getElementById("loading").style.display = "none";
