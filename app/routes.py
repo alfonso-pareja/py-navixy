@@ -1,5 +1,6 @@
 # routes.py
 from fastapi.responses import HTMLResponse
+from fastapi import Query
 from fastapi import APIRouter 
 from fastapi.templating import Jinja2Templates
 from fastapi import FastAPI, HTTPException
@@ -30,10 +31,14 @@ def get_info_navixy(days: Optional[int] = None):
     Config.verifyToken()
     return build_navixy(days)
 
-@router.post("/v1/navixy/alerts")
-def get_info_navixy_alerts(alert_info: AlertInfo):
+@router.get("/v1/navixy/alerts")
+def get_info_navixy_alerts(
+    dateFrom: str = Query(..., title="Start Date"),
+    dateTo: str = Query(..., title="End Date"),
+    trackerId: Optional[int] = Query(None, title="Tracker ID")
+):
     Config.verifyToken()
-    return get_alerts(alert_info.dateFrom, alert_info.dateTo, alert_info.trackerId)
+    return get_alerts(dateFrom, dateTo, trackerId)
 
 @router.get("/v1/navixy/trackers")
 def get_trackers_list():
