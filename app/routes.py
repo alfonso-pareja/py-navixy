@@ -11,6 +11,8 @@ from app.modules.trackers import get_trackers
 from pydantic import BaseModel
 from config import Config
 from typing import Optional
+from datetime import datetime, timedelta
+
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -27,12 +29,19 @@ def get_info_navixy(days: Optional[int] = None):
 
 @router.get("/v1/navixy/alerts")
 def get_info_navixy_alerts(
-    date: str = Query(..., title="Date", regex="^\\d{4}-\\d{2}-\\d{2}$"),
+    date: Optional[str] = Query(None, title="Date", regex="^\\d{4}-\\d{2}-\\d{2}$"),
     trackerId: Optional[int] = Query(None, title="Tracker ID")
 ):
     Config.verifyToken()
-    dateFrom = f"{date} 00:00:00"
-    dateTo = f"{date} 23:59:59"
+    if date is None:
+        now = datetime.now()
+        yesterday = now - timedelta(days=1)
+        date = now.strftime('%Y-%m-%d')
+        dateFrom = yesterday.strftime('%Y-%m-%d 00:00:00')
+        dateTo = now.strftime('%Y-%m-%d %H:%M:%S')
+    else:
+        dateFrom = f"{date} 00:00:00"
+        dateTo = f"{date} 23:59:59"
 
     print(dateFrom, dateTo)
     return get_alerts(dateFrom, dateTo, trackerId)
