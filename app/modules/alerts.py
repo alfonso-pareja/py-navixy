@@ -30,7 +30,6 @@ def get_alerts(dateFrom: str, dateTo: str, tracker: Optional[int]):
 
 
 def extract_data_list(item):
-    print(item)
     if(item is None): 
         return []
 

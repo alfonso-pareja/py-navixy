@@ -16,12 +16,6 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
-class AlertInfo(BaseModel):
-    dateFrom: str
-    dateTo: str
-    trackerId: Optional[int] = None
-
-
 @router.get("/", response_class=HTMLResponse)
 async def read_root():
     return templates.TemplateResponse("bi.html", { "request": {}, "title": "HOla"})
@@ -33,11 +27,14 @@ def get_info_navixy(days: Optional[int] = None):
 
 @router.get("/v1/navixy/alerts")
 def get_info_navixy_alerts(
-    dateFrom: str = Query(..., title="Start Date"),
-    dateTo: str = Query(..., title="End Date"),
+    date: str = Query(..., title="Date", regex="^\\d{4}-\\d{2}-\\d{2}$"),
     trackerId: Optional[int] = Query(None, title="Tracker ID")
 ):
     Config.verifyToken()
+    dateFrom = f"{date} 00:00:00"
+    dateTo = f"{date} 23:59:59"
+
+    print(dateFrom, dateTo)
     return get_alerts(dateFrom, dateTo, trackerId)
 
 @router.get("/v1/navixy/trackers")
