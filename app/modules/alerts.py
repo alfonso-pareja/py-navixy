@@ -11,6 +11,7 @@ def get_alerts(dateFrom: str, dateTo: str, tracker: Optional[int]):
     body = {
         "from": dateFrom,
         "to": dateTo,
+        "events": ["speedup"],
         "hash": HASH_API
     }
     if(tracker is not None):
