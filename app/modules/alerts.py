@@ -38,6 +38,7 @@ def extract_data_list(item):
         "event": item["event"],
         "message": item["message"],
         "is_read": item["is_read"],
+        "tracker_id": item["tracker_id"],
         "location_lat": item["location"]["lat"],
         "location_lng": item["location"]["lng"]
     }
