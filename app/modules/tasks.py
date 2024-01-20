@@ -105,7 +105,10 @@ def build_navixy(daysToGetInfo: Optional[int]):
             formatted_response.append(formatted_task)
 
 
+    print('for')
+
     sorted_response = sorted(formatted_response, key=status_sort_key)
+    print('sort')
     return sorted_response
 
 def get_formatted_time():
